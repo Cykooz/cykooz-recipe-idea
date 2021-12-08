@@ -1,18 +1,27 @@
+import os
+import sys
+
 from setuptools import setup, find_packages
+
+HERE = os.path.abspath(os.path.dirname(__file__))
+sys.path.append(HERE)
+
+import version
+
+
+README = open(os.path.join(HERE, 'README.rst'), 'rt').read()
+CHANGES = open(os.path.join(HERE, 'CHANGES.rst'), 'rt').read()
 
 
 setup(
     name='cykooz.recipe.idea',
-    version='0.1',
-    url='https://github.org/cykooz/cykooz.recipe.idea',
+    version=version.get_version(),
+    url='https://github.com/Cykooz/cykooz-recipe-idea',
     author='Kirill Kuzminykh',
     author_email='cykooz@gmail.com',
     description='zc.buildout recipe that creates a file with list of '
                 'external libraries for PyCharm of IntelliJ IDEA.',
-    long_description=(
-            open('README.rst').read() + '\n\n' +
-            open('CHANGES.rst').read()
-    ),
+    long_description=README + '\n\n' + CHANGES,
     long_description_content_type='text/x-rst',
     classifiers=[
         'Development Status :: 4 - Beta',
