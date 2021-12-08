@@ -1,7 +1,7 @@
 Changes
 *******
 
-0.1 (2021-12-08)
-================
+Next release
+============
 
 - First release.

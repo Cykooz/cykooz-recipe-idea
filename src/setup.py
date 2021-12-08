@@ -34,7 +34,7 @@ setup(
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: Implementation :: CPython',
         'Framework :: Buildout',
-        'Framework :: Buildout::Recipe',
+        'Framework :: Buildout :: Recipe',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
         'License :: OSI Approved :: Apache Software License',
