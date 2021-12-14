@@ -1,8 +1,8 @@
 Changes
 *******
 
-Next release
-============
+0.3 (2021-12-14)
+================
 
 - Added support of Python 3.6 and 3.7.
 
