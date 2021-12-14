@@ -150,9 +150,10 @@ class Recipe:
                 iml_data = ElementTree.tostring(
                     iml_xml,
                     encoding='utf-8',
-                    xml_declaration=True,
                 )
-                open(iml_path, 'wb').write(iml_data)
+                with open(iml_path, 'wb') as f:
+                    f.write(b'<?xml version="1.0" encoding="UTF-8"?>\n')
+                    f.write(iml_data)
                 logging.getLogger(self.name).debug(
                     f'IDEA project file updated ({iml_path}).'
                 )

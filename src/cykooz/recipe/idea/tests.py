@@ -91,6 +91,7 @@ setup(
         assert path.startswith(f'file://{expected_path}')
         assert path.endswith('.egg')
     iml_content = Path('.idea', 'project.iml').open('rt').read()
+    assert iml_content.startswith('<?xml version="1.0" encoding="UTF-8"?>\n')
     assert '<orderEntry type="library" name="Buildout Eggs" level="project" />' in iml_content
 
     # With develop packages
