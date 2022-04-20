@@ -4,6 +4,7 @@
 """
 import os
 from pathlib import Path
+from sys import version_info
 
 import pytest
 import zc.buildout
@@ -61,14 +62,14 @@ setup(
         }
     )
     recipe.install()
-    assert not os.path.exists(recipe.result_path)
+    assert not Path(recipe.result_path).exists()
 
     # Create .idea dir
     build_env.mkdir('.idea')
 
     # .iml file is absent
     recipe.install()
-    assert not os.path.exists(recipe.result_path)
+    assert not Path(recipe.result_path).exists()
 
     # Create .iml file
     build_env.write('.idea', 'project.iml', content=PROJECT_IML)
@@ -81,15 +82,14 @@ setup(
         }
     )
     recipe.install()
-    result_path = recipe.result_path
-    assert os.path.exists(result_path)
+    result_path = Path(recipe.result_path)
+    assert result_path.exists()
     paths = get_result_paths(recipe.result_path)
     eggs_dir = Path(build_env.buildout_dir) / 'eggs'
-    for i, egg_name in enumerate(('demo-0.3', 'demoneeded-1.1')):
+    for i, egg_base in enumerate(('demo-0.3', 'demoneeded-1.1')):
         path = paths[i]
-        expected_path = eggs_dir / egg_name
-        assert path.startswith(f'file://{expected_path}')
-        assert path.endswith('.egg')
+        expected_path = eggs_dir / get_egg_name(egg_base)
+        assert path == expected_path
     iml_content = Path('.idea', 'project.iml').open('rt').read()
     assert iml_content.startswith('<?xml version="1.0" encoding="UTF-8"?>\n')
     assert '<orderEntry type="library" name="Buildout Eggs" level="project" />' in iml_content
@@ -105,12 +105,11 @@ setup(
     ).install()
     paths = get_result_paths(result_path)
     assert len(paths) == 3
-    assert paths[0] == f'file://{build_env.buildout_dir}'
-    for i, egg_name in enumerate(('demo-0.3', 'demoneeded-1.1')):
+    assert paths[0] == Path(build_env.buildout_dir)
+    for i, egg_base in enumerate(('demo-0.3', 'demoneeded-1.1')):
         path = paths[i + 1]
-        expected_path = eggs_dir / egg_name
-        assert path.startswith(f'file://{expected_path}')
-        assert path.endswith('.egg')
+        expected_path = eggs_dir / get_egg_name(egg_base)
+        assert path == expected_path
 
     # With other paths
     build_env.write('.idea', 'project.iml', content=PROJECT_IML)
@@ -123,7 +122,7 @@ setup(
     ).install()
     paths = get_result_paths(result_path)
     assert len(paths) == 3
-    assert any(path.endswith('site-packages') for path in paths)
+    assert any(path.name == 'site-packages' for path in paths)
 
     # Extra path and XML-encoding
     build_env.write('.idea', 'project.iml', content=PROJECT_IML)
@@ -135,9 +134,9 @@ setup(
         }
     ).install()
     paths = get_result_paths(result_path)
-    paths = [path for path in paths if 'egg' not in path]
+    paths = [path for path in paths if path.suffix != '.egg']
     assert paths == [
-        r'file:///home/user/My\\Documents\\pack&amp;age'
+        Path(r'/home/user/My\\Documents\\pack&amp;age').resolve()
     ]
 
 
@@ -179,17 +178,31 @@ eggs =
     ).result_path
     paths = get_result_paths(result_path)
     eggs_dir = Path(build_env.buildout_dir) / 'eggs'
-    for i, egg_name in enumerate(('demo-0.3', 'demoneeded-1.1')):
+    for i, egg_base in enumerate(('demo-0.3', 'demoneeded-1.1')):
         path = paths[i]
-        expected_path = eggs_dir / egg_name
-        assert path.startswith(f'file://{expected_path}')
-        assert path.endswith('.egg')
+        expected_path = eggs_dir / get_egg_name(egg_base)
+        assert path == expected_path
+
+    assert True is False
+
+
+def get_egg_name(egg_base):
+    return f'{egg_base}-py{version_info.major}.{version_info.minor}.egg'
 
 
 def get_result_paths(xml_path):
     result = open(xml_path, 'rt').read()
     lines = (line.strip() for line in result.strip().split('\n'))
-    return sorted(line[11:-4] for line in lines if line.startswith('<root'))
+    paths = []
+    for line in lines:
+        if line.startswith('<root'):
+            uri = line[11:-4]
+
+            # ensure that file uri prefix is there, but remove if in the returned
+            # list for easier comparisons
+            assert uri.startswith('file://')
+            paths.append(Path(uri[7:]))
+    return sorted(paths)
 
 
 class Env:
