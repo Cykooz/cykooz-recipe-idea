@@ -1,8 +1,8 @@
 Changes
 *******
 
-Next release
-============
+0.4 (2022-04-29)
+================
 
 - Added support of Windows (GH-1).
 - Added support of zc.buildout 3+ into tests.
