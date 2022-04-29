@@ -58,7 +58,7 @@ class Recipe:
         egg_link_dir = Path(buildout_cfg['develop-eggs-directory'])
         for egg_link in egg_link_dir.glob('*.egg-link'):
             with egg_link.open('rt') as f:
-                path = Path(f.readline().strip())
+                path = f.readline().strip()
                 if path:
                     all_develop_paths.add(Path(path))
 
