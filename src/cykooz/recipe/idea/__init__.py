@@ -4,7 +4,7 @@
 """
 import glob
 import logging
-import os.path
+from pathlib import Path
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape
 
@@ -17,10 +17,10 @@ class Recipe:
     def __init__(self, buildout, name, options):
         self.name = name
         self.buildout = buildout
-        self.idea_dir = options.get('idea_dir')
-        if not self.idea_dir:
-            self.idea_dir = os.path.join(buildout['buildout']['directory'], '.idea')
-        self.result_path = os.path.join(self.idea_dir, 'libraries', 'Buildout_Eggs.xml')
+        self.idea_dir = Path(
+            options.get('idea_dir') or f'{buildout["buildout"]["directory"]}/.idea'
+        )
+        self.result_path = self.idea_dir / 'libraries' / 'Buildout_Eggs.xml'
         self.include_develop = bool_option(options, 'include_develop', False)
         self.include_eggs = bool_option(options, 'include_eggs', True)
         self.include_other = bool_option(options, 'include_other', False)
@@ -31,12 +31,12 @@ class Recipe:
         self._library_name = 'Buildout Eggs'
 
     def install(self):
-        if not os.path.isdir(self.idea_dir):
+        if not self.idea_dir.is_dir():
             logging.getLogger(self.name).debug(
                 f'Directory of an Idea project ({self.idea_dir}) has not found.'
             )
             return ()
-        iml_paths = glob.glob(os.path.join(self.idea_dir, '*.iml'))
+        iml_paths = list(self.idea_dir.glob('*.iml'))
         if not iml_paths:
             logging.getLogger(self.name).debug(
                 f'Module files (.iml) has not found inside of directory of Idea project.'
@@ -55,23 +55,23 @@ class Recipe:
         buildout_cfg = self.buildout['buildout']
 
         all_develop_paths = set()
-        pattern = os.path.join(buildout_cfg['develop-eggs-directory'], '*.egg-link')
-        for egg_link in glob.glob(pattern):
+        egg_link_dir = Path(buildout_cfg['develop-eggs-directory'])
+        for egg_link in egg_link_dir.glob('*.egg-link'):
             with open(egg_link, 'rt') as f:
-                path = f.readline().strip()
+                path = Path(f.readline().strip())
                 if path:
                     all_develop_paths.add(path)
 
-        egg_directory = os.path.join(buildout_cfg['eggs-directory'], '')
+        egg_directory = Path(buildout_cfg['eggs-directory'])
         develop_paths = []
         egg_paths = []
         other_paths = []
         for dist in ws:
-            path = dist.location
+            path = Path(dist.location)
             if path in all_develop_paths:
                 if self.include_develop:
                     develop_paths.append(path)
-            elif os.path.commonprefix([path, egg_directory]) == egg_directory:
+            elif egg_directory in path.parents:
                 if self.include_eggs:
                     egg_paths.append(path)
             elif self.include_other:
@@ -84,9 +84,9 @@ class Recipe:
         ]
         for path in self._eggs.extra_paths:
             if '*' in path:
-                paths += glob.glob(path)
+                paths += [Path(p) for p in glob.glob(path)]
             else:
-                paths.append(path)
+                paths.append(Path(path))
 
         # order preserving unique
         unique_paths = []
@@ -94,10 +94,7 @@ class Recipe:
             if p not in unique_paths:
                 unique_paths.append(p)
 
-        return [
-            os.path.normcase(os.path.abspath(os.path.realpath(path)))
-            for path in unique_paths
-        ]
+        return unique_paths
 
     def _write_paths(self):
         lines = [
@@ -106,9 +103,8 @@ class Recipe:
             f'    <CLASSES>',
         ]
         for path in self.get_paths():
-            path = path.replace('\\', r'\\')
             lines.append(
-                f'      <root url="file://{escape(path)}" />'
+                f'      <root url="file://{escape(path.as_posix())}" />'
             )
         lines.extend((
             '    </CLASSES>',
@@ -119,9 +115,9 @@ class Recipe:
             '',
         ))
 
-        result_dir = os.path.join(self.idea_dir, 'libraries')
-        if not os.path.exists(result_dir):
-            os.makedirs(result_dir, exist_ok=True)
+        result_dir = Path(self.idea_dir) / 'libraries'
+        if not result_dir.exists():
+            result_dir.mkdir(exist_ok=True)
 
         with open(self.result_path, 'wt') as f:
             f.write('\n'.join(lines))
@@ -129,7 +125,7 @@ class Recipe:
             f'The library table with list of eggs paths has created in the file "{self.result_path}".'
         )
 
-    def _update_idea_project(self, iml_path: str):
+    def _update_idea_project(self, iml_path: Path):
         iml_data = open(iml_path, 'rt').read()
         if f'name="{self._library_name}"' not in iml_data:
             iml_xml = ElementTree.fromstring(iml_data)
