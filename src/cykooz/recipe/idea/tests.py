@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 from sys import version_info
 
+import pkg_resources
 import pytest
 import zc.buildout
 import zc.buildout.testing
@@ -13,6 +14,12 @@ from zc.buildout.buildout import Buildout
 from zc.buildout.tests import create_sample_eggs
 
 from cykooz.recipe.idea import Recipe
+
+
+BUILDOUT_VERSION = pkg_resources.working_set.find(
+    pkg_resources.Requirement.parse('zc.buildout')
+).version
+IS_BUILDOUT2 = BUILDOUT_VERSION.startswith('2.')
 
 
 @pytest.fixture(name='build_env')
@@ -86,10 +93,11 @@ setup(
     assert result_path.exists()
     paths = get_result_paths(recipe.result_path)
     eggs_dir = Path(build_env.buildout_dir) / 'eggs'
-    for i, egg_base in enumerate(('demo-0.3', 'demoneeded-1.1')):
-        path = paths[i]
-        expected_path = eggs_dir / get_egg_name(egg_base)
-        assert path == expected_path
+    for i, egg_name in enumerate(('demo-0.3', 'demoneeded-1.1')):
+        path = paths[i].as_posix()
+        expected_path = (eggs_dir / egg_name).as_posix()
+        assert path.startswith(expected_path)
+        assert path.endswith('.egg')
     iml_content = Path('.idea', 'project.iml').open('rt').read()
     assert iml_content.startswith('<?xml version="1.0" encoding="UTF-8"?>\n')
     assert '<orderEntry type="library" name="Buildout Eggs" level="project" />' in iml_content
@@ -106,10 +114,11 @@ setup(
     paths = get_result_paths(result_path)
     assert len(paths) == 3
     assert paths[0] == Path(build_env.buildout_dir)
-    for i, egg_base in enumerate(('demo-0.3', 'demoneeded-1.1')):
-        path = paths[i + 1]
-        expected_path = eggs_dir / get_egg_name(egg_base)
-        assert path == expected_path
+    for i, egg_name in enumerate(('demo-0.3', 'demoneeded-1.1')):
+        path = paths[i + 1].as_posix()
+        expected_path = (eggs_dir / egg_name).as_posix()
+        assert path.startswith(expected_path)
+        assert path.endswith('.egg')
 
     # With other paths
     build_env.write('.idea', 'project.iml', content=PROJECT_IML)
@@ -130,13 +139,13 @@ setup(
         buildout, 'test',
         {
             'eggs': eggs,
-            'extra-paths': r'/home/user/My\Documents\pack&age',
+            'extra-paths': r'/home/user/My-Documents-pack&age',
         }
     ).install()
     paths = get_result_paths(result_path)
     paths = [path for path in paths if path.suffix != '.egg']
     assert paths == [
-        Path(r'/home/user/My\\Documents\\pack&amp;age').resolve()
+        Path('/home/user/My-Documents-pack&amp;age').resolve()
     ]
 
 
@@ -178,12 +187,11 @@ eggs =
     ).result_path
     paths = get_result_paths(result_path)
     eggs_dir = Path(build_env.buildout_dir) / 'eggs'
-    for i, egg_base in enumerate(('demo-0.3', 'demoneeded-1.1')):
-        path = paths[i]
-        expected_path = eggs_dir / get_egg_name(egg_base)
-        assert path == expected_path
-
-    assert True is False
+    for i, egg_name in enumerate(('demo-0.3', 'demoneeded-1.1')):
+        path = paths[i].as_posix()
+        expected_path = (eggs_dir / egg_name).as_posix()
+        assert path.startswith(expected_path)
+        assert path.endswith('.egg')
 
 
 def get_egg_name(egg_base):
@@ -246,6 +254,14 @@ class MockedBuildout(Buildout):
         for name in 'eggs', 'parts':
             if not os.path.exists(name):
                 os.mkdir(name)
+        if IS_BUILDOUT2:
+            kwargs = {
+                'user_defaults': False,
+            }
+        else:
+            kwargs = {
+                'use_user_defaults': False,
+            }
         Buildout.__init__(
             self, config_path,
             [
@@ -255,7 +271,7 @@ class MockedBuildout(Buildout):
                 ('buildout', 'find-links', link_server),
                 ('buildout', 'index', link_server + '/index'),
             ],
-            user_defaults=False,
+            **kwargs,
         )
 
     Options = zc.buildout.testing.TestOptions

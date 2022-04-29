@@ -57,10 +57,10 @@ class Recipe:
         all_develop_paths = set()
         egg_link_dir = Path(buildout_cfg['develop-eggs-directory'])
         for egg_link in egg_link_dir.glob('*.egg-link'):
-            with open(egg_link, 'rt') as f:
+            with egg_link.open('rt') as f:
                 path = Path(f.readline().strip())
                 if path:
-                    all_develop_paths.add(path)
+                    all_develop_paths.add(Path(path))
 
         egg_directory = Path(buildout_cfg['eggs-directory'])
         develop_paths = []
@@ -115,18 +115,18 @@ class Recipe:
             '',
         ))
 
-        result_dir = Path(self.idea_dir) / 'libraries'
+        result_dir = self.idea_dir / 'libraries'
         if not result_dir.exists():
             result_dir.mkdir(exist_ok=True)
 
-        with open(self.result_path, 'wt') as f:
+        with self.result_path.open('wt') as f:
             f.write('\n'.join(lines))
         logging.getLogger(self.name).debug(
             f'The library table with list of eggs paths has created in the file "{self.result_path}".'
         )
 
     def _update_idea_project(self, iml_path: Path):
-        iml_data = open(iml_path, 'rt').read()
+        iml_data = iml_path.read_text()
         if f'name="{self._library_name}"' not in iml_data:
             iml_xml = ElementTree.fromstring(iml_data)
             element = iml_xml.find('component[@name="NewModuleRootManager"]')
@@ -147,7 +147,7 @@ class Recipe:
                     iml_xml,
                     encoding='utf-8',
                 )
-                with open(iml_path, 'wb') as f:
+                with iml_path.open('wb') as f:
                     f.write(b'<?xml version="1.0" encoding="UTF-8"?>\n')
                     f.write(iml_data)
                 logging.getLogger(self.name).debug(
